@@ -4,6 +4,8 @@ class Eventbrite {
      * Eventbrite API endpoint
      */
     var $api_endpoint = "https://www.eventbrite.com/json/";
+    var $auth_tokens;
+    var $api_url;
 
     /**
      * Eventbrite API key (REQUIRED)
@@ -15,7 +17,7 @@ class Eventbrite {
      *   Eventbrite user email
      *   Eventbrite user password
      */
-    function Eventbrite( $tokens = null, $user = null, $password = null ) {
+    function __construct( $tokens = null, $user = null, $password = null ) {
         $this->api_url = parse_url($this->api_endpoint);
         $this->auth_tokens = array();
         if(is_array($tokens)){
@@ -37,32 +39,32 @@ class Eventbrite {
     }
 
     function oauth_handshake( $tokens ){
-        $params = array( 
-            'grant_type'=>'authorization_code', 
-            'client_id'=> $tokens['app_key'], 
-            'client_secret'=> $tokens['client_secret'], 
+        $params = array(
+            'grant_type'=>'authorization_code',
+            'client_id'=> $tokens['app_key'],
+            'client_secret'=> $tokens['client_secret'],
             'code'=> $tokens['access_code'] );
 
         $request_url = $this->api_url['scheme'] . "://" . $this->api_url['host'] . '/oauth/token';
-        
-        // TODO: Replace the cURL code with something a bit more modern - 
-        //$context = stream_context_create(array('http' => array( 
-        //    'method'  => 'POST', 
-        //    'header'  => "Content-type: application/x-www-form-urlencoded\r\n", 
-        //    'content' => http_build_query($params)))); 
+
+        // TODO: Replace the cURL code with something a bit more modern -
+        //$context = stream_context_create(array('http' => array(
+        //    'method'  => 'POST',
+        //    'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+        //    'content' => http_build_query($params))));
         //$json_data = file_get_contents( $request_url, false, $context );
 
-        // CURL-POST implementation - 
+        // CURL-POST implementation -
         // WARNING: This code may require you to install the php5-curl package
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_POST, TRUE);
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
-        curl_setopt($ch, CURLOPT_URL, $request_url); 
+        curl_setopt($ch, CURLOPT_URL, $request_url);
         curl_setopt($ch, CURLOPT_HEADER, FALSE);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
         $json_data = curl_exec($ch);
         $resp_info = curl_getinfo($ch);
-        curl_close($ch); 
+        curl_close($ch);
 
         $response = get_object_vars(json_decode($json_data));
         if( !array_key_exists('access_token', $response) || array_key_exists('error', $response) ){
@@ -72,22 +74,22 @@ class Eventbrite {
     }
 
     // For information about available API methods, see: http://developer.eventbrite.com/doc/
-    function __call( $method, $args ) {  
+    function __call( $method, $args ) {
         // Unpack our arguments
         if( is_array( $args ) && array_key_exists( 0, $args ) && is_array( $args[0]) ){
             $params = $args[0];
         }else{
             $params = array();
         }
-        
+
         // Add authentication tokens to querystring
         if(!isset($this->auth_tokens['access_token'])){
             $params = array_merge($params, $this->auth_tokens);
         }
-        
-        // Build our request url, urlencode querystring params 
+
+        // Build our request url, urlencode querystring params
         $request_url = $this->api_url['scheme']."://".$this->api_url['host'].$this->api_url['path'].$method.'?'.http_build_query( $params,'','&');
-        
+
         // Call the API
         if(!isset($this->auth_tokens['access_token'])){
             $resp = file_get_contents( $request_url );
@@ -98,11 +100,11 @@ class Eventbrite {
             );
             $resp = file_get_contents( $request_url, false, stream_context_create($options));
         }
-        
+
         // parse our response
         if($resp){
             $resp = json_decode( $resp );
-        
+
             if( isset( $resp->error ) && isset($resp->error->error_message) ){
                 throw new Exception( $resp->error->error_message );
             }
@@ -144,8 +146,8 @@ class Eventbrite {
 
         # We do not have a valid access token for this user so far
         if( $user == false ){
-            # This user is not yet authenticated - 
-            #    it is their first visit, 
+            # This user is not yet authenticated -
+            #    it is their first visit,
             #    or they are returning with an access_code that we will exchange for an access_token,
             #    or they were redirected here after logout
             if( isset($auth_tokens['access_code']) ){
@@ -185,7 +187,7 @@ class Eventbrite {
             $html .= "<div><h3>Welcome Back!</h3>";
             $html .= "<p>You are logged in as:<br/>{$params['user_name']}<br/><i>({$params['user_email']})</i></p>";
             $html .= "<p><a class='button' href='{$params['logout_link']}'>Logout</a></p></div>";
-      
+
         }elseif( isset($params['oauth_link']) ){
             if(isset($params['login_error'])){
                 $html .= "<p class='error'>{$params['login_error']}</p>";
@@ -193,7 +195,7 @@ class Eventbrite {
             $html .= "<p><a class='button' href='{$params['oauth_link']}'>Login with Eventbrite</a></p></div>";
         }else{
             $html .= "<div><h2>Eventbrite widgetHTML template example fail :(</h2></div>";
-        }  
+        }
         $html .= "</div>";
         return $html;
     }
@@ -259,19 +261,19 @@ class Eventbrite {
      * Widgets:
      */
     public static function loginWidget( $options, $get_token='getAccessToken', $save_token='saveAccessToken', $delete_token='deleteAccessToken', $render_login_box='widgetHTML' ){
-        if(  ( isset($options['logout_link']) 
+        if(  ( isset($options['logout_link'])
                && $options['logout_link'] == $_SERVER['REQUEST_URI'] )
           // TODO: add a way to disable this default:
           || ( isset($_GET['eb_logout'])
-               && $_GET['eb_logout']=="true" )) { 
+               && $_GET['eb_logout']=="true" )) {
 
             // clear this user's access_token -
-            Eventbrite::deleteAccessToken(); 
+            Eventbrite::deleteAccessToken();
             // remove our "logout=true" trigger from the querystring-
             header("Location: " . $_SERVER['PHP_SELF']);
             exit;
         }
-        
+
         // automatically pull the access_code from the querysting?
         // TODO: add a way to disable this:
         if(!isset($options['access_code'] )){
@@ -286,7 +288,7 @@ class Eventbrite {
         //  Check to see if we have a valid user account
         //  and Proccess any data-related work:
         $response = Eventbrite::OAuthLogin($options, $get_token, $save_token, $delete_token);
-        
+
         //  package up the data for our view / template:
         $login_params = array();
         if( is_array($response)){
@@ -304,15 +306,15 @@ class Eventbrite {
                 $login_params['logout_link'] = $_SERVER['PHP_SELF'] . '?eb_logout=true';
             }
         }
-        
+
         // view related work:
         //  render your "template"
         if(is_callable($render_login_box)){
             return $render_login_box( $login_params );
         }elseif(is_callable(array('self',$render_login_box))){
-            return self::$render_login_box( $login_params );  
+            return self::$render_login_box( $login_params );
         }else{
-            //the templating callback was not valid, 
+            //the templating callback was not valid,
             //return the raw data for use with an external template
             return $login_params;
         }
@@ -332,7 +334,7 @@ class Eventbrite {
     }
 
     public static function countdownWidget( $evnt ) {
-        return '<div style="width:195px; text-align:center;" ><iframe src="http://www.eventbrite.com/countdown-widget?eid=' . $evnt->id . '" frameborder="0" height="479" width="195" marginheight="0" marginwidth="0" scrolling="no" allowtransparency="true"></iframe><div style="font-family:Helvetica, Arial; font-size:10px; padding:5px 0 5px; margin:2px; width:195px; text-align:center;" ><a style="color:#ddd; text-decoration:none;" target="_blank" href="http://www.eventbrite.com/r/ecount" >Online event registration</a><span style="color:#ddd;" > for </span><a style="color:#ddd; text-decoration:none;" target="_blank" href="http://www.eventbrite.com/event/' . $evnt->id . '?ref=ecount" >' . $evnt->title . '</a></div></div>'; 
+        return '<div style="width:195px; text-align:center;" ><iframe src="http://www.eventbrite.com/countdown-widget?eid=' . $evnt->id . '" frameborder="0" height="479" width="195" marginheight="0" marginwidth="0" scrolling="no" allowtransparency="true"></iframe><div style="font-family:Helvetica, Arial; font-size:10px; padding:5px 0 5px; margin:2px; width:195px; text-align:center;" ><a style="color:#ddd; text-decoration:none;" target="_blank" href="http://www.eventbrite.com/r/ecount" >Online event registration</a><span style="color:#ddd;" > for </span><a style="color:#ddd; text-decoration:none;" target="_blank" href="http://www.eventbrite.com/event/' . $evnt->id . '?ref=ecount" >' . $evnt->title . '</a></div></div>';
     }
 
     public static function buttonWidget( $evnt ) {

@@ -1,4 +1,30 @@
 <?php
+
+class EventbriteException extends Exception
+{
+    protected $error_type;
+
+    public function __construct($message, $error_type, $code = 0, Exception $previous = null) {
+        $this->error_type = $error_type;
+        parent::__construct($message, $code, $previous);
+    }
+
+    public function getType() {
+        return $this->error_type;
+    }
+}
+
+class EventbriteOauthException extends EventbriteException
+{
+
+}
+
+class EventbriteApiException extends EventbriteException
+{
+
+}
+
+
 class Eventbrite {
     /**
      * Eventbrite API endpoint
@@ -68,7 +94,7 @@ class Eventbrite {
 
         $response = get_object_vars(json_decode($json_data));
         if( !array_key_exists('access_token', $response) || array_key_exists('error', $response) ){
-            throw new Exception( $response['error_description'] );
+            throw new EventbriteOauthException( $response['error_description'], $response['error'] );
         }
         return array_merge($tokens, $response);
     }
@@ -106,7 +132,7 @@ class Eventbrite {
             $resp = json_decode( $resp );
 
             if( isset( $resp->error ) && isset($resp->error->error_message) ){
-                throw new Exception( $resp->error->error_message );
+                throw new EventbriteApiException( $resp->error->error_message, $resp->error->error_type );
             }
         }
         return $resp;

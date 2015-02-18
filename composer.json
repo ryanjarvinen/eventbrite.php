@@ -1,0 +1,11 @@
+{
+	"name": "ivandokov/eventbrite",
+	"description": "Eventbrite API Library",
+	"keywords": ["eventbrite"],
+	"license": "MIT",
+	"autoload": {
+		"psr-4": {
+			"Eventbrite\\": "src/"
+		}
+	}
+}
